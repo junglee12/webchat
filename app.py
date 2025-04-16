@@ -61,7 +61,7 @@ with st.sidebar:
     st.header("Configuration")
     # (Keep System Prompt and Model Selector)
     system_prompt = st.text_area("Enter System Prompt", value="You are a helpful AI assistant...", height=150)
-    model_choice = st.selectbox("Select Model", ["gemini-2.0-flash-lite", "gemini-2.0-flash", " gemini-2.5-pro-preview-03-25", "imagen-3.0-generate-002"])
+    model_choice = st.selectbox("Select Model", ["gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-2.5-pro-preview-03-25", "imagen-3.0-generate-002"])
     st.markdown("---")
 
     # (Keep File Management Expander)
