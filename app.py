@@ -12,7 +12,7 @@ api_key = os.getenv("GOOGLE_API_KEY")
 
 # --- Configuration and Initialization ---
 
-st.set_page_config(page_title="Gemini Chat App", layout="wide")
+st.set_page_config(page_title="Chat App", layout="wide")
 
 st.markdown("""
     <style>
