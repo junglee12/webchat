@@ -125,7 +125,7 @@ else:
 
 # --- Main Chat Interface ---
 # (Keep this section as is)
-st.title("💬 Gemini Chat")
+st.title("💬 Chat")
 current_model_name = st.session_state.gemini_model.model_name if st.session_state.gemini_model else None
 if current_model_name != model_choice:
      try: st.session_state.gemini_model = genai.GenerativeModel(model_choice, system_instruction=system_prompt)
