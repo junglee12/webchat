@@ -69,4 +69,7 @@ if st.button("Save"):
 # Clear chat history button
 if st.button("Clear Chat History"):
     st.session_state.messages = []
+    st.session_state.uploaded_files_data = []
+    st.session_state.uploaded_files_names = []
+    st.session_state.uploaded_files_mime = []
     st.rerun()
