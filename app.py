@@ -11,6 +11,7 @@ You are a strict, traditional tutor preparing a 5th grader for honors-level acad
 - **Never** make assumptions about the student's knowledge or the topics they need to study. Always ask for clarification if unsure.  
 - Be **brief** in all interactions.  
 - **Never** provide any part of the solution.
+- **Never** ask more than one question at a time.
 
 **Process**:  
 1. **Topic Selection**:  
@@ -56,21 +57,21 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "locked_access" not in st.session_state:
     st.session_state.locked_access = False
-if "uploaded_file_data" not in st.session_state:
-    st.session_state.uploaded_file_data = None
-if "uploaded_file_name" not in st.session_state:
-    st.session_state.uploaded_file_name = None
-if "uploaded_file_mime" not in st.session_state:
-    st.session_state.uploaded_file_mime = None
+if "uploaded_files_data" not in st.session_state:
+    st.session_state.uploaded_files_data = []
+if "uploaded_files_names" not in st.session_state:
+    st.session_state.uploaded_files_names = []
+if "uploaded_files_mime" not in st.session_state:
+    st.session_state.uploaded_files_mime = []
 
 # --- End Initialize Session State Defaults ---
 
-st.title("Chatty")
+st.title("Gemini Flash Chat App")
 
-# File uploader in the sidebar
+# File uploader in the sidebar for multiple files
 with st.sidebar:
-    uploaded_file = st.file_uploader(
-        "Upload a file (e.g., text, image, video, audio, document, spreadsheet, code)",
+    uploaded_files = st.file_uploader(
+        "Upload files (e.g., text, image, video, audio, document, spreadsheet, code)",
         type=[
             # Images
             "jpg", "jpeg", "png", "webp",
@@ -86,15 +87,18 @@ with st.sidebar:
             "doc", "docx", "rtf", "dot", "dotx",
             # Code
             "c", "cpp", "py", "java", "php", "sql", "html"
-        ]
+        ],
+        accept_multiple_files=True
     )
 
-    # Store file data in session state if a new file is uploaded
-    if uploaded_file:
-        st.session_state.uploaded_file_data = uploaded_file.read()
-        st.session_state.uploaded_file_name = uploaded_file.name
-        st.session_state.uploaded_file_mime = uploaded_file.type
-        st.sidebar.write(f"Current file: {st.session_state.uploaded_file_name}")
+    # Store multiple file data in session state if new files are uploaded
+    if uploaded_files:
+        for uploaded_file in uploaded_files:
+            if uploaded_file.name not in st.session_state.uploaded_files_names:
+                st.session_state.uploaded_files_data.append(uploaded_file.read())
+                st.session_state.uploaded_files_names.append(uploaded_file.name)
+                st.session_state.uploaded_files_mime.append(uploaded_file.type)
+        st.sidebar.write("Current files:", ", ".join(st.session_state.uploaded_files_names))
 
 # Check if API key is set
 if not st.session_state.api_key:
@@ -124,20 +128,20 @@ else:
             with st.chat_message("user"):
                 st.markdown(prompt)
 
-            # Include file data if available
-            if st.session_state.uploaded_file_data:
-                file_b64 = base64.b64encode(st.session_state.uploaded_file_data).decode('utf-8')
+            # Include all file data if available
+            for i in range(len(st.session_state.uploaded_files_data)):
+                file_b64 = base64.b64encode(st.session_state.uploaded_files_data[i]).decode('utf-8')
                 message_parts.append(types.Part(
                     inline_data=types.Blob(
-                        mime_type=st.session_state.uploaded_file_mime,
+                        mime_type=st.session_state.uploaded_files_mime[i],
                         data=file_b64
                     )
                 ))
                 # Add file info to chat history only if not already present
-                if not any(m["content"] == f"Uploaded file: {st.session_state.uploaded_file_name}" for m in st.session_state.messages):
-                    st.session_state.messages.append({"role": "user", "content": f"Uploaded file: {st.session_state.uploaded_file_name}"})
+                if not any(m["content"] == f"Uploaded file: {st.session_state.uploaded_files_names[i]}" for m in st.session_state.messages):
+                    st.session_state.messages.append({"role": "user", "content": f"Uploaded file: {st.session_state.uploaded_files_names[i]}"})
                     with st.chat_message("user"):
-                        st.markdown(f"Uploaded file: {st.session_state.uploaded_file_name}")
+                        st.markdown(f"Uploaded file: {st.session_state.uploaded_files_names[i]}")
 
             # Prepare generation config
             chat_config = types.GenerateContentConfig(
@@ -174,7 +178,7 @@ else:
                     config=chat_config
                 )
 
-                # Send message with text and/or file data as parts
+                # Send message with text and/or multiple file data as parts
                 response = chat_session.send_message(message_parts)
 
                 # Add model response to chat history
