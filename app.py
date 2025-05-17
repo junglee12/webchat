@@ -9,9 +9,9 @@ import base64 # Although types.Part.from_bytes takes bytes directly, base64 enco
 if 'api_key' not in st.session_state:
     st.session_state.api_key = ''
 if 'temperature' not in st.session_state:
-    st.session_state.temperature = 0.7 # Default from settings description
+    st.session_state.temperature = 0.1 # Default from settings description
 if 'top_p' not in st.session_state:
-    st.session_state.top_p = 0.95 # Default from settings description
+    st.session_state.top_p = 0.1 # Default from settings description
 if 'system_instruction' not in st.session_state:
     st.session_state.system_instruction = ''
 if 'messages' not in st.session_state:
