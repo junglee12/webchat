@@ -1,75 +1,114 @@
+# pages/settings.py
 import streamlit as st
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+from google import genai # Correct import for the top-level genai object
 
-# Load .env file
+# Load environment variables from .env file
 load_dotenv()
-API_KEY = os.getenv("GOOGLE_API_KEY")
 
-# Initialize session state
-if "locked_access" not in st.session_state:
+# --- Session State Initialization (ensure consistency with app.py) ---
+if 'api_key' not in st.session_state:
+    st.session_state.api_key = ''
+if 'temperature' not in st.session_state:
+    st.session_state.temperature = 0.7
+if 'top_p' not in st.session_state:
+    st.session_state.top_p = 0.95
+if 'system_instruction' not in st.session_state:
+    st.session_state.system_instruction = ''
+if 'messages' not in st.session_state:
+    st.session_state.messages = []
+if 'locked_access' not in st.session_state:
     st.session_state.locked_access = False
+if 'uploaded_files_data' not in st.session_state:
+    st.session_state.uploaded_files_data = []
+if 'uploaded_files_names' not in st.session_state:
+    st.session_state.uploaded_files_names = []
+if 'uploaded_files_mime' not in st.session_state:
+    st.session_state.uploaded_files_mime = []
+if 'file_uploader_key' not in st.session_state:
+    st.session_state.file_uploader_key = 0
 
+
+# --- Settings Title and Description ---
 st.title("Settings")
-st.markdown("Adjust the model parameters and API key here.")
+st.write("Configure your Gemini Flash Chat App settings.")
 
-# Locked fields (API key and system instruction)
+# --- Access Control (Password) ---
+STREAMLIT_PASSWORD = os.getenv("STREAMLIT_PASSWORD")
+
 if not st.session_state.locked_access:
-    password = st.text_input("Enter Password to Unlock", type="password")
-    if password == os.getenv("STREAMLIT_PASSWORD"):
-        st.session_state.locked_access = True
-        st.session_state.api_key = API_KEY  # Load from .env
-        st.rerun()
-    elif password:
-        st.error("Incorrect password")
-    api_key = st.text_input("Google API Key", value="****", disabled=True)
-    system_instruction = st.text_area("System Instruction", value="****", disabled=True)
-else:
-    api_key = st.text_input(
+    st.write("Enter password to unlock settings.")
+    password_input = st.text_input("Password", type="password")
+    if password_input:
+        if STREAMLIT_PASSWORD and password_input == STREAMLIT_PASSWORD:
+            st.session_state.locked_access = True
+            # Load API key from .env if available, otherwise keep current session state value
+            if os.getenv("GOOGLE_API_KEY"):
+                 st.session_state.api_key = os.getenv("GOOGLE_API_KEY")
+            st.success("Settings unlocked!")
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+
+    # Display locked inputs
+    st.text_input("Google API Key", value="****************", type="password", disabled=True)
+    st.text_area("System Instruction", value="****", disabled=True)
+
+else: # locked_access is True
+    st.write("Settings unlocked.")
+    # Editable API Key input
+    api_key_input = st.text_input(
         "Google API Key",
-        value=st.session_state.get("api_key", API_KEY),
+        value=st.session_state.api_key,
         type="password",
-        help="Enter your Google Generative AI API Key. You can get one from https://makersuite.google.com/."
+        help="Enter your Google API Key here."
     )
-    system_instruction = st.text_area(
+
+    # Editable System Instruction input
+    system_instruction_input = st.text_area(
         "System Instruction",
-        value=st.session_state.get("system_instruction", ""),
-        help="Instructions for the model to steer it toward better performance. E.g., 'Answer as concisely as possible'."
+        value=st.session_state.system_instruction,
+        help="Provide a system instruction to guide the model's behavior."
     )
 
-# Unlocked settings
-temperature = st.slider(
-    "Temperature",
-    min_value=0.0,
-    max_value=1.0,
-    value=st.session_state.get("temperature", 0.7),
-    step=0.01,
-    help="Controls the degree of randomness in token selection. Lower values are good for prompts that require a less open-ended or creative response, while higher values can lead to more diverse or creative results."
-)
+    # --- Model Parameter Sliders ---
+    st.subheader("Model Parameters")
+    temperature_input = st.slider(
+        "Temperature",
+        min_value=0.0,
+        max_value=1.0,
+        value=st.session_state.temperature,
+        step=0.01,
+        help="Controls the randomness of predictions. Lower values (closer to 0) make the model more deterministic, while higher values (closer to 1) make it more creative."
+    )
 
-top_p = st.slider(
-    "Top P",
-    min_value=0.0,
-    max_value=1.0,
-    value=st.session_state.get("top_p", 0.95),
-    step=0.01,
-    help="Tokens are selected from the most to least probable until the sum of their probabilities equals this value. Use a lower value for less random responses and a higher value for more random responses."
-)
+    top_p_input = st.slider(
+        "Top P",
+        min_value=0.0,
+        max_value=1.0,
+        value=st.session_state.top_p,
+        step=0.01,
+        help="Controls the diversity of predictions. The model considers tokens whose probability sums up to the top_p value. Lower values restrict the model to more likely tokens."
+    )
 
-# Save button to store settings and re-lock
-if st.button("Save"):
-    st.session_state.api_key = api_key
-    st.session_state.temperature = temperature
-    st.session_state.top_p = top_p
-    st.session_state.system_instruction = system_instruction
-    st.session_state.locked_access = False
-    st.success("Settings saved!")
-    st.rerun()
+    # --- Save Button ---
+    if st.button("Save Settings"):
+        st.session_state.api_key = api_key_input
+        st.session_state.temperature = temperature_input
+        st.session_state.top_p = top_p_input
+        st.session_state.system_instruction = system_instruction_input
+        st.session_state.locked_access = False # Lock settings after saving
+        st.success("Settings saved!")
+        st.rerun()
 
-# Clear chat history button
+# --- Clear Chat History Button ---
+st.subheader("Chat Management")
 if st.button("Clear Chat History"):
     st.session_state.messages = []
     st.session_state.uploaded_files_data = []
     st.session_state.uploaded_files_names = []
     st.session_state.uploaded_files_mime = []
+    st.session_state.file_uploader_key += 1 # Increment key to reset file uploader in app.py
+    st.success("Chat history cleared!")
     st.rerun()

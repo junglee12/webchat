@@ -1,196 +1,242 @@
+# app.py
 import streamlit as st
-import google.genai as genai
-from google.genai import types
-import base64
+from google import genai # Correct import for the top-level genai object
+from google.genai import types # Correct import for types
+import os
+import base64 # Although types.Part.from_bytes takes bytes directly, base64 encoding is often used for display/storage
 
-default_system_instruction = """**Role**:  
-You are a strict, traditional tutor preparing a 5th grader for honors-level academic achievement. Your primary goal is to foster independence, discipline, and a deep understanding of core concepts through a formal, structured approach.
-
-**Restrictions**:  
-- You must **never** solve or attempt to solve any part of the questions. Only the student is responsible for trying to solve or solving problems.  
-- **Never** make assumptions about the student's knowledge or the topics they need to study. Always ask for clarification if unsure.  
-- Be **brief** in all interactions.  
-- **Never** provide any part of the solution.
-- **Never** ask more than one question at a time.
-
-**Process**:  
-1. **Topic Selection**:  
-   - Begin by asking the student which specific topics they need to study. If they are unsure, guide them by suggesting broad subject areas (e.g., STEM, grammar, history, foreign languages) and narrowing down based on their response.  
-
-2. **Explanations and Guidance**:  
-   - Provide clear, formal explanations of the requested topics. Use precise language and ensure the student understands the foundational concepts before moving forward.  
-   - Offer varied sample questions that challenge the student's understanding and application of the topic. These questions should range in difficulty to build confidence and mastery.  
-
-3. **Student Responsibility**:  
-   - The student must attempt all questions independently. If their answer is incorrect or incomplete, firmly but constructively push them to think critically and try again. Do not provide the answer; instead, ask guiding questions to lead them to the correct solution.  
-   - Require repetition of concepts or problems until the student demonstrates a thorough understanding and a strong grasp of core ideas.  
-
-4. **Drills and Reinforcement**:  
-   - After every 2-3 questions, assign short drills that emphasize memorization of key concepts and their applications. These drills should reinforce foundational knowledge through rote learning and repetition.  
-   - Occasionally acknowledge the student's effort with brief, formal encouragement (e.g., "Your persistence is noted. Let us now perfect this concept."). This maintains motivation while preserving the serious tone.  
-
-5. **Progress Assessment**:  
-   - After every 6-8 questions, administer a mock test with multiple-choice questions similar to a school exam format. This test should assess the student's understanding and ability to perform under pressure.  
-   - If the student consistently struggles with a topic, adjust the difficulty of the questions or provide additional foundational explanations before proceeding.  
-
-6. **Tone and Language**:  
-   - Maintain a serious, no-nonsense tone throughout the session. Use formal language and stress the importance of discipline, hard work, and foundational knowledge.  
-   - If the student shows signs of frustration, calmly remind them of the value of persistence and the expectations of an honors student.  
-
-**Additional Guidelines**:  
-- If the student needs a quick check on their work then answer only in 'answer is correct' or 'answer is not correct'.  
-- If the student masters a topic quickly, challenge them with more advanced questions to ensure they are stretched beyond basic understanding.  
-- If the student repeatedly fails to grasp a concept, break it down into smaller, more manageable parts and require step-by-step mastery before reassembling the full concept.  
-- Always conclude each session with a brief summary of what was learned and assign a small set of review questions to reinforce the day's material.
-"""
-
-# --- Initialize Session State Defaults ---
-if "api_key" not in st.session_state:
-    st.session_state.api_key = ""
-if "temperature" not in st.session_state:
-    st.session_state.temperature = 0.1
-if "top_p" not in st.session_state:
-    st.session_state.top_p = 0.1
-if "system_instruction" not in st.session_state:
-    st.session_state.system_instruction = default_system_instruction
-if "messages" not in st.session_state:
+# --- Session State Initialization ---
+if 'api_key' not in st.session_state:
+    st.session_state.api_key = ''
+if 'temperature' not in st.session_state:
+    st.session_state.temperature = 0.7 # Default from settings description
+if 'top_p' not in st.session_state:
+    st.session_state.top_p = 0.95 # Default from settings description
+if 'system_instruction' not in st.session_state:
+    st.session_state.system_instruction = ''
+if 'messages' not in st.session_state:
     st.session_state.messages = []
-if "locked_access" not in st.session_state:
-    st.session_state.locked_access = False
-if "uploaded_files_data" not in st.session_state:
+if 'locked_access' not in st.session_state:
+    st.session_state.locked_access = False # Default to locked
+if 'uploaded_files_data' not in st.session_state:
     st.session_state.uploaded_files_data = []
-if "uploaded_files_names" not in st.session_state:
+if 'uploaded_files_names' not in st.session_state:
     st.session_state.uploaded_files_names = []
-if "uploaded_files_mime" not in st.session_state:
+if 'uploaded_files_mime' not in st.session_state:
     st.session_state.uploaded_files_mime = []
+if 'file_uploader_key' not in st.session_state:
+    st.session_state.file_uploader_key = 0 # Key to reset file uploader
 
-# --- End Initialize Session State Defaults ---
+# --- App Title ---
+st.title("Chatty")
 
-st.title("Gemini Flash Chat App")
+# --- Sidebar File Uploader ---
+st.sidebar.header("Upload Files")
 
-# File uploader in the sidebar for multiple files
-with st.sidebar:
-    uploaded_files = st.file_uploader(
-        "Upload files (e.g., text, image, video, audio, document, spreadsheet, code)",
-        type=[
-            # Images
-            "jpg", "jpeg", "png", "webp",
-            # Videos
-            "mp4", "mpeg", "mov", "avi", "wmv", "flv", "webm",
-            # Audio
-            "mp3", "wav", "ogg", "flac",
-            # Documents
-            "pdf", "txt", "md",
-            # Spreadsheets
-            "csv", "tsv", "xls", "xlsx",
-            # Word Documents
-            "doc", "docx", "rtf", "dot", "dotx",
-            # Code
-            "c", "cpp", "py", "java", "php", "sql", "html"
-        ],
-        accept_multiple_files=True
-    )
+# Allowed MIME types based on prompt description
+allowed_types = [
+    "image/jpeg", "image/jpg", "image/png", "image/webp",
+    "video/mp4", "video/mpeg", "video/quicktime", "video/avi", "video/x-ms-wmv", "video/x-flv", "video/webm",
+    "audio/mp3", "audio/wav", "audio/ogg", "audio/flac",
+    "application/pdf", "text/plain", "text/markdown",
+    "text/csv", "text/tab-separated-values", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/rtf", "application/vnd.dot", "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+    "text/x-csrc", "text/x-c++src", "text/x-python", "text/x-java-source", "text/x-php", "text/x-sql", "text/html"
+]
 
-    # Store multiple file data in session state if new files are uploaded
-    if uploaded_files:
+# Streamlit's file uploader uses extensions, so we provide a list of extensions
+# We need to map extensions back to MIME types when creating Part objects
+uploaded_files = st.sidebar.file_uploader(
+    "Choose files...",
+    type=[mime.split('/')[-1] for mime in allowed_types if '/' in mime] + [mime for mime in allowed_types if '/' not in mime], # Handle cases like 'txt', 'csv' etc. if needed, though standard types are usually fine
+    accept_multiple_files=True,
+    key=f"file_uploader_{st.session_state.file_uploader_key}" # Use key to reset
+)
+
+# Process uploaded files if any
+if uploaded_files:
+    # Check if the list of uploaded files has changed
+    # This prevents reprocessing if the user just interacts with other widgets
+    current_uploaded_names = [f.name for f in uploaded_files]
+    if current_uploaded_names != st.session_state.uploaded_files_names:
+        st.session_state.uploaded_files_data = []
+        st.session_state.uploaded_files_names = []
+        st.session_state.uploaded_files_mime = []
+
         for uploaded_file in uploaded_files:
-            if uploaded_file.name not in st.session_state.uploaded_files_names:
-                st.session_state.uploaded_files_data.append(uploaded_file.read())
-                st.session_state.uploaded_files_names.append(uploaded_file.name)
-                st.session_state.uploaded_files_mime.append(uploaded_file.type)
-        st.sidebar.write("Current files:", ", ".join(st.session_state.uploaded_files_names))
+            bytes_data = uploaded_file.getvalue()
+            st.session_state.uploaded_files_data.append(bytes_data)
+            st.session_state.uploaded_files_names.append(uploaded_file.name)
+            st.session_state.uploaded_files_mime.append(uploaded_file.type) # Streamlit provides the MIME type
 
-# Check if API key is set
+# Display list of uploaded files in sidebar
+if st.session_state.uploaded_files_names:
+    st.sidebar.subheader("Uploaded Files:")
+    for name in st.session_state.uploaded_files_names:
+        st.sidebar.write(f"- {name}")
+
+# --- API Key Check ---
 if not st.session_state.api_key:
-    st.warning("Please unlock and enter your Google API Key on the Settings page.")
-else:
+    st.warning("Please enter your Google API Key in the Settings page.")
+    st.stop()
+
+# --- Set Environment Variable for genai ---
+# This is the correct way to provide the API key to the library in a Streamlit app
+os.environ["GOOGLE_API_KEY"] = st.session_state.api_key
+
+# --- Client Initialization ---
+try:
+    # Initialize the client using the API key from the environment variable
+    client = genai.Client()
+except Exception as e:
+    st.error(f"Error initializing client: {e}")
+    st.stop()
+
+
+# --- Chat History Display ---
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        # Handle displaying parts if message is complex (e.g., includes files)
+        if isinstance(message["content"], list):
+            for part in message["content"]:
+                if isinstance(part, types.Part):
+                    if part.text:
+                        st.markdown(part.text)
+                    elif part.inline_data:
+                        # Display image/video/audio based on mime type
+                        mime_type = part.inline_data.mime_type
+                        data = part.inline_data.data
+                        if mime_type.startswith("image/"):
+                            st.image(data, caption=f"Uploaded: {mime_type}")
+                        elif mime_type.startswith("video/"):
+                             st.video(data, format=mime_type, caption=f"Uploaded: {mime_type}")
+                        elif mime_type.startswith("audio/"):
+                             st.audio(data, format=mime_type, caption=f"Uploaded: {mime_type}")
+                        else:
+                             st.write(f"Uploaded file ({mime_type}): Cannot display inline.")
+                else:
+                     st.write(part) # Should be text if not a Part
+        else:
+            st.markdown(message["content"])
+
+
+# --- Chat Input and Content Generation ---
+if prompt := st.chat_input("Ask Gemini Flash..."):
+    # Add user message to history
+    # Prepare file parts for the current turn
+    file_parts = []
+    for data, name, mime_type in zip(st.session_state.uploaded_files_data, st.session_state.uploaded_files_names, st.session_state.uploaded_files_mime):
+        try:
+            file_parts.append(types.Part.from_bytes(data=data, mime_type=mime_type))
+        except Exception as e:
+            st.warning(f"Could not process file {name} ({mime_type}): {e}")
+            # Optionally skip this file or handle differently
+
+    # Combine text prompt and file parts for the current turn's content
+    current_turn_content_parts = [types.Part.from_text(text=prompt)] + file_parts
+    current_turn_content = types.Content(role="user", parts=current_turn_content_parts)
+
+    # Append the user's full content (text + files) to the session history for display
+    st.session_state.messages.append({"role": "user", "content": current_turn_content_parts})
+
+    # Display user message immediately
+    with st.chat_message("user"):
+        st.markdown(prompt)
+        if st.session_state.uploaded_files_names:
+             st.write("Including uploaded files:")
+             for name, mime_type, data in zip(st.session_state.uploaded_files_names, st.session_state.uploaded_files_mime, st.session_state.uploaded_files_data):
+                 if mime_type.startswith("image/"):
+                     st.image(data, caption=f"Uploaded: {name}")
+                 elif mime_type.startswith("video/"):
+                     st.video(data, format=mime_type, caption=f"Uploaded: {name}")
+                 elif mime_type.startswith("audio/"):
+                     st.audio(data, format=mime_type, caption=f"Uploaded: {name}")
+                 else:
+                     st.write(f"Uploaded file ({name}, {mime_type})")
+
+
+    # Clear uploaded files after they are sent with the prompt
+    st.session_state.uploaded_files_data = []
+    st.session_state.uploaded_files_names = []
+    st.session_state.uploaded_files_mime = []
+    st.session_state.file_uploader_key += 1 # Increment key to reset uploader
+    st.rerun() # Rerun to clear the file uploader widget and process the prompt
+
+
+# This block runs after the rerun triggered by chat_input
+# Check if the last message was from the user and needs a model response
+if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+    # Get the full conversation history including the last user message
+    # The history needs to be in the format expected by generate_content, which is a list of Content objects
+    # We stored the content parts, so we need to reconstruct the Content objects for the history
+    conversation_history_for_model = []
+    for msg in st.session_state.messages:
+        # Ensure content is a list of parts (as stored) and create a Content object
+        if isinstance(msg["content"], list):
+             conversation_history_for_model.append(types.Content(role=msg["role"], parts=msg["content"]))
+        else:
+             # Handle cases where content might not be a list of parts (e.g., older text-only messages)
+             conversation_history_for_model.append(types.Content(role=msg["role"], parts=[types.Part.from_text(text=msg["content"])]))
+
+
     try:
-        # Initialize the Generative AI client
-        client = genai.Client(api_key=st.session_state.api_key)
-
-        # Define the model
-        MODEL_NAME = 'gemini-2.5-flash-preview-04-17'
-
-        # Display chat messages from history
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-
-        # Accept user input
-        prompt = st.chat_input("Enter your message")
-
-        if prompt:
-            # Prepare message content
-            message_parts = []
-            message_parts.append(types.Part(text=prompt))
-            # Add user message to chat history
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
-
-            # Include all file data if available
-            for i in range(len(st.session_state.uploaded_files_data)):
-                file_b64 = base64.b64encode(st.session_state.uploaded_files_data[i]).decode('utf-8')
-                message_parts.append(types.Part(
-                    inline_data=types.Blob(
-                        mime_type=st.session_state.uploaded_files_mime[i],
-                        data=file_b64
-                    )
-                ))
-                # Add file info to chat history only if not already present
-                if not any(m["content"] == f"Uploaded file: {st.session_state.uploaded_files_names[i]}" for m in st.session_state.messages):
-                    st.session_state.messages.append({"role": "user", "content": f"Uploaded file: {st.session_state.uploaded_files_names[i]}"})
-                    with st.chat_message("user"):
-                        st.markdown(f"Uploaded file: {st.session_state.uploaded_files_names[i]}")
-
-            # Prepare generation config
-            chat_config = types.GenerateContentConfig(
+        # Generate response using the full conversation history via the client
+        response_stream = client.models.generate_content_stream(
+            model='gemini-2.5-flash-preview-04-17', # Specify the model name here
+            contents=conversation_history_for_model, # Pass the full history as a list of Content objects
+            config=types.GenerateContentConfig( # Use 'config' argument for GenerateContentConfig
                 temperature=st.session_state.temperature,
                 top_p=st.session_state.top_p,
-                system_instruction=st.session_state.system_instruction,
-            )
+                system_instruction=st.session_state.system_instruction # Pass system instruction in config
+            ),
+        )
 
-            # Get model response
-            try:
-                # Filter and correct history to ensure proper user-model alternation
-                history = []
-                for m in st.session_state.messages:
-                    if m["content"].startswith("Uploaded file:"):
-                        continue
-                    role = "user" if m["role"] == "user" else "model"  # Convert 'assistant' to 'model'
-                    if role == "user" or (history and history[-1].role == "user" and role == "model"):
-                        history.append(types.Content(
-                            role=role,
-                            parts=[types.Part(text=m["content"])]
-                        ))
+        # --- Start of Token Usage Logging Section (Moved to process first chunk) ---
+        # Attempt to get the first chunk to extract usage metadata
+        try:
+            first_chunk = next(response_stream)
+            if hasattr(first_chunk, 'usage_metadata') and first_chunk.usage_metadata:
+                usage = first_chunk.usage_metadata
+                st.sidebar.subheader("Token Usage:")
+                st.sidebar.write(f"Prompt Tokens: {usage.prompt_token_count}")
+                st.sidebar.write(f"Candidate Tokens: {usage.candidates_token_count}")
+                st.sidebar.write(f"Total Tokens: {usage.total_token_count}")
+                if usage.cached_content_token_count is not None:
+                     st.sidebar.write(f"Cached Content Tokens: {usage.cached_content_token_count}")
+                # Logging details might be too verbose for sidebar, print to console or log file
+                # print(f"Prompt Token Details: {usage.prompt_tokens_details}")
+                # print(f"Candidate Token Details: {usage.candidates_tokens_details}")
+            # If the first chunk has text, start building the response with it
+            full_response = first_chunk.text if hasattr(first_chunk, 'text') and first_chunk.text else ""
 
-                # If no user messages or history doesn't start with user, initialize with a default user turn
-                if not history or history[0].role != "user":
-                    history.insert(0, types.Content(
-                        role="user",
-                        parts=[types.Part(text="Start session")]
-                    ))
+        except StopIteration:
+            # Handle case where the stream is empty (e.g., blocked by safety filters)
+            st.warning("The model returned an empty response.")
+            full_response = ""
+            # No usage metadata to display if stream is empty
 
-                # Create chat session
-                chat_session = client.chats.create(
-                    model=MODEL_NAME,
-                    history=history,
-                    config=chat_config
-                )
+        # --- End of Token Usage Logging Section ---
 
-                # Send message with text and/or multiple file data as parts
-                response = chat_session.send_message(message_parts)
 
-                # Add model response to chat history
-                model_response = response.text
-                st.session_state.messages.append({"role": "model", "content": model_response})
+        # Display streaming response (starting from the first chunk's text if any, then remaining chunks)
+        with st.chat_message("model"):
+            message_placeholder = st.empty()
+            message_placeholder.markdown(full_response + "▌") # Display initial text + typing cursor
 
-                # Display assistant response
-                with st.chat_message("model"):
-                    st.markdown(model_response)
+            # Process remaining chunks
+            for chunk in response_stream: # Continue iterating from the second chunk
+                if chunk.text:
+                    full_response += chunk.text
+                    message_placeholder.markdown(full_response + "▌") # Show typing cursor
+            message_placeholder.markdown(full_response) # Final response without cursor
 
-            except Exception as e:
-                st.error(f"An error occurred during chat: {e}")
+
+        # Add model response to history
+        st.session_state.messages.append({"role": "model", "content": full_response})
+
 
     except Exception as e:
-        st.error(f"An error occurred initializing the client: {e}")
+        st.error(f"An error occurred: {e}")
+        # Remove the last user message if generation failed to avoid sending it again
+        if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+             st.session_state.messages.pop()
