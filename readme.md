@@ -17,15 +17,14 @@ Chatty is a Streamlit web application that provides an interactive chat interfac
 
 ## Project Structure
 
-```
-tutor1/
-├── app.py                   # Main Streamlit application
+your-project-directory/
+├── app.py                   # Main Streamlit application for the chat interface.
 ├── pages/
-│   └── settings.py          # Settings page for the application
-├── .env                     # For environment variables (you need to create this)
-├── requirements.txt         # Python dependencies (you should create this)
-└── readme.md                # This file
-```
+│   └── settings.py          # Streamlit page for application settings.
+├── utils.py                 # Common utility functions, like session state initialization.
+├── requirements.txt         # Python dependencies for the project.
+├── .env                     # Optional: For local environment variables (e.g., API keys, passwords). Not version controlled.
+└── readme.md                # This file, providing information about the project.
 
 ## Setup and Installation
 
@@ -52,7 +51,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 ### 3. Install Dependencies
 
-Create a `requirements.txt` file (see content below) in your project's root directory (`/home/j/Downloads/dev/tutor1/`). Then install the dependencies:
+Create a `requirements.txt` file (see content below) in your project's root directory. Then install the dependencies:
 
 ```bash
 pip install -r requirements.txt
@@ -67,7 +66,7 @@ python-dotenv
 
 ### 4. Set Up Environment Variables
 
-Create a `.env` file in the root directory of the project (`/home/j/Downloads/dev/tutor1/.env`) with the following content:
+Create a `.env` file in the root directory of the project with the following content:
 
 ```env
 GOOGLE_API_KEY="YOUR_GOOGLE_API_KEY"
@@ -81,10 +80,10 @@ The application will load your `GOOGLE_API_KEY` from this file when you unlock t
 
 ## Running the Application
 
-Once the setup is complete, you can run the Streamlit application:
+Once the setup is complete, you can run the Streamlit application from your project's root directory:
 
 ```bash
-streamlit run /home/j/Downloads/dev/tutor1/app.py
+streamlit run app.py
 ```
 
 This will start the application, and you can access it in your web browser, usually at `http://localhost:8501`.
