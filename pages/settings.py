@@ -74,12 +74,20 @@ else: # locked_access is True
         help="Controls the diversity of predictions. The model considers tokens whose probability sums up to the top_p value. Lower values restrict the model to more likely tokens."
     )
 
+    st.subheader("Advanced Settings")
+    enable_grounding_input = st.checkbox(
+        "Enable Grounding with Google Search",
+        value=st.session_state.get('enable_google_search_grounding', False),
+        help="Allows the model to use Google Search to inform its responses. May improve relevance for recent topics or specific information."
+    )
+
     # --- Save Button ---
     if st.button("Save Settings"):
         st.session_state.api_key = api_key_input
         st.session_state.temperature = temperature_input
         st.session_state.top_p = top_p_input
         st.session_state.system_instruction = system_instruction_input
+        st.session_state.enable_google_search_grounding = enable_grounding_input
         st.session_state.locked_access = False # Lock settings after saving
         st.success("Settings saved!")
         # st.rerun() # Rerun will occur naturally due to button click and session_state changes

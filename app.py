@@ -2,6 +2,7 @@
 import streamlit as st
 from google import genai # Correct import for the top-level genai object
 from google.genai import types # Correct import for types
+from google.generativeai.types import Tool, GoogleSearchRetrieval # For grounding
 import os
 import base64 # Although types.Part.from_bytes takes bytes directly, base64 encoding is often used for display/storage
 from utils import initialize_app_session_state
@@ -195,16 +196,25 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
 
 
     try:
-        def get_model_response(client_instance, model_name_str, history, temp, tp, sys_instruction):
+        def get_model_response(client_instance, model_name_str, history, temp, tp, sys_instruction, enable_grounding):
             """Generates content stream from the model."""
+            gen_config = types.GenerateContentConfig(
+                temperature=temp,
+                top_p=tp,
+                system_instruction=sys_instruction
+            )
+
+            api_tools = None
+            if enable_grounding:
+                # Ensure Tool and GoogleSearchRetrieval are imported from google.generativeai.types
+                google_search_tool = Tool(google_search_retrieval=GoogleSearchRetrieval())
+                api_tools = [google_search_tool]
+
             return client_instance.models.generate_content_stream(
                 model=model_name_str,
                 contents=history,
-                config=types.GenerateContentConfig(
-                    temperature=temp,
-                    top_p=tp,
-                    system_instruction=sys_instruction
-                ),
+                config=gen_config,
+                tools=api_tools
             )
 
         response_stream = get_model_response(
@@ -213,7 +223,8 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
             conversation_history_for_model,
             st.session_state.temperature,
             st.session_state.top_p,
-            st.session_state.system_instruction
+            st.session_state.system_instruction,
+            st.session_state.get('enable_google_search_grounding', False) # Get the grounding setting
         )
 
         # --- Start of Token Usage Logging Section (Moved to process first chunk) ---

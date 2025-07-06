@@ -11,6 +11,7 @@ Chatty is a Streamlit web application that provides an interactive chat interfac
     *   Set your Google API Key.
     *   Define a System Instruction to guide the model's behavior.
     *   Adjust model parameters: Temperature and Top P.
+    *   Enable/Disable Grounding with Google Search for potentially more up-to-date or specific responses.
 *   **Chat History:** View the history of your conversation.
 *   **Clear Chat History:** Option to clear the current conversation and uploaded files.
 *   **Token Usage Display:** See the token count (prompt, candidate, total, cached) for each model interaction in the sidebar.
@@ -94,7 +95,7 @@ This will start the application, and you can access it in your web browser, usua
     *   Navigate to the "Settings" page from the sidebar.
     *   Enter the `STREAMLIT_PASSWORD` you set in your `.env` file to unlock the settings.
     *   If a `GOOGLE_API_KEY` is found in your `.env` file, it will be pre-filled. Otherwise, you can enter it manually.
-    *   Configure the System Instruction, Temperature, and Top P as desired.
+    *   Configure the System Instruction, Temperature, Top P, and the "Enable Grounding with Google Search" option as desired.
     *   Click "Save Settings". Settings will be locked again after saving.
 
 2.  **Chat Interface (`Chatty` - Main Page):**

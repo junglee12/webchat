@@ -10,7 +10,8 @@ DEFAULT_SESSION_STATE = {
     'uploaded_files_data': [],
     'uploaded_files_names': [],
     'uploaded_files_mime': [],
-    'file_uploader_key': 0
+    'file_uploader_key': 0,
+    'enable_google_search_grounding': False
 }
 
 # Specific defaults for settings.py if they differ, otherwise, they can use the same.
@@ -64,6 +65,7 @@ def initialize_settings_session_state():
         'uploaded_files_data': [],
         'uploaded_files_names': [],
         'uploaded_files_mime': [],
-        'file_uploader_key': 0
+        'file_uploader_key': 0,
+        'enable_google_search_grounding': DEFAULT_SESSION_STATE['enable_google_search_grounding'] # Ensure it's part of settings init
     }
     initialize_session_state(defaults=settings_defaults)
