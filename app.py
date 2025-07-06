@@ -2,7 +2,7 @@
 import streamlit as st
 from google import genai # Correct import for the top-level genai object
 from google.genai import types # Correct import for types
-from google.generativeai.types import Tool, GoogleSearchRetrieval # For grounding
+from google.genai.types import Tool, GoogleSearchRetrieval # For grounding
 import os
 import base64 # Although types.Part.from_bytes takes bytes directly, base64 encoding is often used for display/storage
 from utils import initialize_app_session_state
