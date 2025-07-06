@@ -6,28 +6,10 @@ from google import genai # Correct import for the top-level genai object
 
 # Load environment variables from .env file
 load_dotenv()
+from utils import initialize_settings_session_state
 
 # --- Session State Initialization (ensure consistency with app.py) ---
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = ''
-if 'temperature' not in st.session_state:
-    st.session_state.temperature = 0.7
-if 'top_p' not in st.session_state:
-    st.session_state.top_p = 0.95
-if 'system_instruction' not in st.session_state:
-    st.session_state.system_instruction = ''
-if 'messages' not in st.session_state:
-    st.session_state.messages = []
-if 'locked_access' not in st.session_state:
-    st.session_state.locked_access = False
-if 'uploaded_files_data' not in st.session_state:
-    st.session_state.uploaded_files_data = []
-if 'uploaded_files_names' not in st.session_state:
-    st.session_state.uploaded_files_names = []
-if 'uploaded_files_mime' not in st.session_state:
-    st.session_state.uploaded_files_mime = []
-if 'file_uploader_key' not in st.session_state:
-    st.session_state.file_uploader_key = 0
+initialize_settings_session_state()
 
 
 # --- Settings Title and Description ---
@@ -47,7 +29,7 @@ if not st.session_state.locked_access:
             if os.getenv("GOOGLE_API_KEY"):
                  st.session_state.api_key = os.getenv("GOOGLE_API_KEY")
             st.success("Settings unlocked!")
-            st.rerun()
+            # st.rerun() # Rerun will occur naturally due to session_state change & widget interaction
         else:
             st.error("Incorrect password.")
 
@@ -100,7 +82,7 @@ else: # locked_access is True
         st.session_state.system_instruction = system_instruction_input
         st.session_state.locked_access = False # Lock settings after saving
         st.success("Settings saved!")
-        st.rerun()
+        # st.rerun() # Rerun will occur naturally due to button click and session_state changes
 
 # --- Clear Chat History Button ---
 st.subheader("Chat Management")
@@ -111,4 +93,4 @@ if st.button("Clear Chat History"):
     st.session_state.uploaded_files_mime = []
     st.session_state.file_uploader_key += 1 # Increment key to reset file uploader in app.py
     st.success("Chat history cleared!")
-    st.rerun()
+    # st.rerun() # Rerun will occur naturally due to button click and session_state changes
